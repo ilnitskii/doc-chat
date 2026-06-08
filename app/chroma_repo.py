@@ -14,9 +14,10 @@ class ChromaDocChat:
             collection_name: str = "documents_ru_clean"
     ):
         """Инициализирует ChromaDB в persistent режиме."""
-        client = chromadb.PersistentClient(path=chroma_persistant_dir)
+        self.client = chromadb.PersistentClient(path=chroma_persistant_dir)
+        self.collection_name = collection_name
 
-        self.collection: chromadb.Collection = client.get_or_create_collection(
+        self.collection: chromadb.Collection = self.client.get_or_create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"}
         )
@@ -24,12 +25,20 @@ class ChromaDocChat:
 
     def add_record(self, chunk: VectorizedChunk):
         """Добавляет запись."""
-        self.collection.add(
+        self.collection.upsert(
                 ids=chunk.doc_id,
                 embeddings=chunk.embedding,
                 metadatas=chunk.metadata.to_dict(),
                 documents=chunk.text
             )
+
+    def clear(self):
+        """Очищает текущую коллекцию ChromaDB."""
+        records = self.collection.get()
+        ids = records.get('ids', [])
+        if ids:
+            self.collection.delete(ids=ids)
+        print(f'ChromaDB коллекция очищена: {self.collection_name}')
 
     def search_records(
         self,

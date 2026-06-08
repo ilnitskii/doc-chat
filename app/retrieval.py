@@ -120,10 +120,13 @@ class Reranker:
     def filter_by_score(
         self,
         ranking: list[VectorizedChunk],
-        threshold: float = 0.7
+        threshold: float = 0.7,
+        fallback_top_k: int = 3
     ) -> list[VectorizedChunk]:
         """Фильтрация выборки по пороговому значения."""
         result = [chunk for chunk in ranking if chunk.score > threshold]
+        if not result:
+            result = ranking[:fallback_top_k]
         print('Filtering')
         for chunk in result:
             print(f'{chunk.metadata.chunk_number} - [{chunk.score}]')

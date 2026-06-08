@@ -22,7 +22,7 @@ class OpenAICompatibleEngine(InferenceEngine):
 
     engine_id: str = ""
     _default_host: str = "http://127.0.0.1:1234"
-    _api_prefix: str = ""
+    _api_prefix: str = "/v1"
 
     def __init__(self, host: str | None = None, *, timeout: float = 600.0) -> None:
         self._host = (host or self._default_host).rstrip("/")
@@ -69,6 +69,10 @@ class OpenAICompatibleEngine(InferenceEngine):
         try:
             url = f"{self._api_prefix}/chat/completions"
             resp = self._client.post(url, json=payload)
+            if resp.status_code == 404 and not self._api_prefix:
+                resp = self._client.post('/v1/chat/completions', json=payload)
+                if resp.status_code != 404:
+                    self._api_prefix = '/v1'
             if resp.status_code == 400 and "tools" in payload:
                 payload.pop("tools", None)
                 payload.pop("tool_choice", None)
@@ -156,6 +160,10 @@ class OpenAICompatibleEngine(InferenceEngine):
     def list_models(self) -> List[str]:
         try:
             resp = self._client.get(f"{self._api_prefix}/models")
+            if resp.status_code == 404 and not self._api_prefix:
+                resp = self._client.get('/v1/models')
+                if resp.status_code != 404:
+                    self._api_prefix = '/v1'
             resp.raise_for_status()
         except (
             httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError,

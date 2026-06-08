@@ -114,9 +114,14 @@ def load_embeddings_to_repos(
 def do_indexing(
         chroma_chat: ChromaDocChat,
         elastic_chat: ElasticDocChat,
-        docs_directory: str = "./html_docs"
+        docs_directory: str = "./html_docs",
+        reset: bool = False
 ):
     print('Индексация документов...')
+    if reset:
+        chroma_chat.clear()
+        elastic_chat.clear()
+
     files_data = read_html_files(docs_directory) + read_pdf_files(docs_directory)
     if not files_data:
         print('HTML/PDF файлы не найдены!')
@@ -146,7 +151,8 @@ def main():
     retriever = HybridRetriever(collection_name, chroma_chat, elastic_chat)
 
     if input('Провести индексацию? [Y|y - да]:').lower() == 'y':
-        do_indexing(chroma_chat, elastic_chat)
+        reset = input('Очистить старые записи коллекции? [Y|y - да]:').lower() == 'y'
+        do_indexing(chroma_chat, elastic_chat, reset=reset)
 
     print('Поиск по документам (введите "quit" для выхода)')
 
@@ -165,9 +171,12 @@ def main():
             # msg_es = agent.build_messages(f'Сгенерируй до 3 ключевых слов на английском языке для поиска в локальной локальной базе данных информации по следующему пользовательскому запросу: {query}. Ответ должен содержать только список ключевых слов на английском языке, разделенных пробелом, для поиска необходимой пользователю информации. Не выводи никакой другой информации.')
             msg_es = agent.build_messages(f'Сгенерируй до 3 ключевых слов на русском языке для поиска в локальной локальной базе данных информации по следующему пользовательскому запросу: {query}. Ответ должен содержать только список ключевых слов на русском языке, разделенных пробелом, для поиска необходимой пользователю информации. Не выводи никакой другой информации.')
 
-            query_for_semantic_search = agent.generate(
-                msg_chroma).get('content')
-            key_words = agent.generate(msg_es).get('content')
+            query_for_semantic_search = (
+                agent.generate(msg_chroma).get('content') or ''
+            ).strip() or query
+            key_words = (
+                agent.generate(msg_es).get('content') or ''
+            ).strip() or query
 
             print(f'Semantic search query: {query_for_semantic_search}')
             print(f'Elastic  search_query: {key_words}')
@@ -178,7 +187,14 @@ def main():
             search_result = '\n\n'.join([chunk.text for chunk in relevant_chunks])
             print('[AI Agent] working ...')
             msg = agent.build_messages(f'Пользователь задал вопрос: {query}.\n\nВ результате поиска была найдена следующая информация:\n{search_result}\n\nНа основе найденной информации дай ясный, четкий и понятный ответ пользователю.')
-            answer = agent.generate(msg).get('content')
+            answer = (agent.generate(msg).get('content') or '').strip()
+            if not answer:
+                answer = (
+                    'LLM не вернула ответ. Проверьте, что локальный LLM-сервер '
+                    'доступен и имя модели в main.py совпадает с одной из '
+                    'моделей сервера.\n\nНайденные фрагменты:\n'
+                    f'{search_result[:3000]}'
+                )
             print(f'[AI Agent] Result\n{answer}')
 
         except KeyboardInterrupt:

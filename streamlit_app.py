@@ -62,8 +62,12 @@ def build_answer(agent, retriever, query: str, top_k: int):
         'пользователю информации. Не выводи никакой другой информации.'
     )
 
-    query_for_semantic_search = agent.generate(msg_chroma).get('content')
-    key_words = agent.generate(msg_es).get('content')
+    query_for_semantic_search = (
+        agent.generate(msg_chroma).get('content') or ''
+    ).strip() or query
+    key_words = (
+        agent.generate(msg_es).get('content') or ''
+    ).strip() or query
     relevant_chunks = retriever.retrieve_relevant(
         query_for_semantic_search,
         key_words,
@@ -77,7 +81,13 @@ def build_answer(agent, retriever, query: str, top_k: int):
         'На основе найденной информации дай ясный, четкий и понятный ответ '
         'пользователю.'
     )
-    answer = agent.generate(msg).get('content')
+    answer = (agent.generate(msg).get('content') or '').strip()
+    if not answer:
+        answer = (
+            'LLM не вернула ответ. Проверьте, что локальный LLM-сервер '
+            'доступен и имя модели совпадает с одной из моделей сервера.\n\n'
+            f'Найденные фрагменты:\n{search_result[:3000]}'
+        )
     return answer, relevant_chunks, query_for_semantic_search, key_words
 
 
@@ -102,6 +112,7 @@ with st.sidebar:
     model_name = st.text_input('Модель', DEFAULT_MODEL)
     temperature = st.slider('Temperature', 0.0, 1.0, 0.1, 0.1)
     top_k = st.slider('Top K', 1, 30, 10, 1)
+    reset_index = st.checkbox('Очистить старые индексы перед индексацией', True)
 
     st.divider()
     uploaded_files = st.file_uploader(
@@ -118,7 +129,12 @@ with st.sidebar:
 
         _, _, chroma_chat, elastic_chat, _ = get_runtime_or_stop()
         with st.spinner('Индексация...'):
-            do_indexing(chroma_chat, elastic_chat, docs_directory=docs_directory)
+            do_indexing(
+                chroma_chat,
+                elastic_chat,
+                docs_directory=docs_directory,
+                reset=reset_index
+            )
         st.success('Индексация завершена')
 
     if st.button('Проверить LLM'):

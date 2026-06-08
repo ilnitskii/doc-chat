@@ -118,6 +118,12 @@ class ElasticDocChat:
         self.elastic_repository.add_one(
             self.index_name, chunk.to_dict(), chunk.doc_id)
 
+    def clear(self):
+        """Очищает текущий индекс Elasticsearch."""
+        self.elastic_repository.delete_index(self.index_name)
+        self.elastic_repository.create_index(self.index_name, ES_MAPPING)
+        print(f'Elasticsearch индекс очищен: {self.index_name}')
+
     def search_records(self, search_query: str, top_k: int = 50) -> list[Chunk]:
         """Полнотекстовый поиск.
 
