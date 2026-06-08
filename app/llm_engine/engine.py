@@ -22,7 +22,7 @@ class OpenAICompatibleEngine(InferenceEngine):
 
     engine_id: str = ""
     _default_host: str = "http://127.0.0.1:1234"
-    _api_prefix: str = "/v1"
+    _api_prefix: str = ""
 
     def __init__(self, host: str | None = None, *, timeout: float = 600.0) -> None:
         self._host = (host or self._default_host).rstrip("/")

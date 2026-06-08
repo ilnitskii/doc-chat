@@ -4,7 +4,11 @@ import hashlib
 from app.llm_engine import OpenAICompatibleEngine, BaseAgent
 from app.chroma_repo import ChromaDocChat
 from app.elastic_repo import ElasticDocChat
-from app.text_processing import read_html_files, extract_text_from_html
+from app.text_processing import (
+    read_html_files,
+    read_pdf_files,
+    extract_text_from_html
+)
 from app.embeddings import get_embedding
 from tqdm import tqdm
 from app.types import Chunk, MetaData, VectorizedChunk
@@ -80,7 +84,7 @@ def chunk_text(text: str, filename: str,
 
 def process_file(file_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Полная обработка файла: извлечение текста, чанкинг."""
-    text = extract_text_from_html(file_data['content'])
+    text = file_data.get('text') or extract_text_from_html(file_data['content'])
     chunks = chunk_text(text, file_data['filename'])
     print(f"  - File {file_data['filename']}: {len(chunks)} chanks")
     return chunks
@@ -107,12 +111,15 @@ def load_embeddings_to_repos(
     print('Эмбеддинги загружены в БД')
 
 
-def do_indexing(chroma_chat: ChromaDocChat, elastic_chat: ElasticDocChat):
+def do_indexing(
+        chroma_chat: ChromaDocChat,
+        elastic_chat: ElasticDocChat,
+        docs_directory: str = "./html_docs"
+):
     print('Индексация документов...')
-    docs_directory = "./html_docs"
-    files_data = read_html_files(docs_directory)
+    files_data = read_html_files(docs_directory) + read_pdf_files(docs_directory)
     if not files_data:
-        print('HTML файлы не найдены!')
+        print('HTML/PDF файлы не найдены!')
         return
 
     total_chunks = 0
@@ -129,8 +136,8 @@ def do_indexing(chroma_chat: ChromaDocChat, elastic_chat: ElasticDocChat):
 def main():
     engine = OpenAICompatibleEngine()
     print(f'Список моделей на LLM-сервере: {engine.list_models()}')
-    # agent = BaseAgent(engine, model='qwen3.5-9b', temperature=0.1)
-    agent = BaseAgent(engine, model='google/gemma-4-e2b', temperature=0.1)
+    agent = BaseAgent(engine, model='qwen3.5-9b', temperature=0.1)
+    # agent = BaseAgent(engine, model='google/gemma-4-e2b', temperature=0.1)
 
     collection_name = 'fiction_books'
     chroma_chat = ChromaDocChat(collection_name=collection_name)

@@ -7,6 +7,13 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 from sklearn.metrics.pairwise import cosine_similarity
 from app.types import VectorizedChunk
 
+import os
+from dotenv import load_dotenv
+from huggingface_hub import login
+
+load_dotenv()
+login(token=os.getenv("HF_TOKEN"))
+
 def get_embedding_api(text: str) -> List[float] | None:
     """Получение эмбеддинга."""
     request_body = {'text': text}

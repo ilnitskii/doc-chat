@@ -5,3 +5,8 @@ lxml
 requests
 tqdm
 elasticsearch==8.15.1
+streamlit
+pymupdf
+httpx
+python-dotenv
+huggingface-hub

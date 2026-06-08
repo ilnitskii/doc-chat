@@ -48,6 +48,50 @@ def read_html_files(directory: str) -> List[Dict[str, Any]]:
     return files_data
 
 
+def extract_text_from_pdf(filepath: str) -> str:
+    """Извлекает текст из PDF-файла."""
+    try:
+        import fitz
+    except ImportError as error:
+        raise ImportError(
+            'Для чтения PDF установите зависимость pymupdf'
+        ) from error
+
+    pages_text = []
+    with fitz.open(filepath) as pdf_document:
+        for page in pdf_document:
+            page_text = page.get_text('text')
+            if page_text:
+                pages_text.append(page_text)
+
+    text = ' '.join(' '.join(pages_text).split())
+    return text
+
+
+def read_pdf_files(directory: str) -> List[Dict[str, Any]]:
+    """Считывает все PDF файлы из указанной папки.
+
+    Возвращает список словарей: {'filename': str, 'text': str}
+    """
+    files_data = []
+    if not os.path.isdir(directory):
+        raise FileNotFoundError(f'Каталог не найден: {directory}')
+    for filename in os.listdir(directory):
+        if filename.lower().endswith('.pdf'):
+            filepath = os.path.join(directory, filename)
+            try:
+                text = extract_text_from_pdf(filepath)
+                files_data.append({
+                    'filename': filename,
+                    'text': text,
+                    'filepath': filepath
+                })
+                print(f'Загружен PDF файл: {filename}')
+            except Exception as e:
+                print(f'Ошибка чтения {filename}: {e}')
+    return files_data
+
+
 def extract_text_from_html(html_content: str) -> str:
     """Извлекает чистый текст из HTML."""
     soup = BeautifulSoup(html_content, 'lxml')
